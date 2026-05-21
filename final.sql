@@ -43,7 +43,8 @@ CREATE TABLE matches(
     away_team_id INT,
     match_date DATETIME NOT NULL,
     stadium VARCHAR(100) NOT NULL,
-    match_status VARCHAR(30) DEFAULT 'Scheduled'
+    match_status VARCHAR(30) DEFAULT 'Scheduled',
+    win_team IN(NULL,-1,
 );
 
 -- tạo bảng thông số 
@@ -56,8 +57,8 @@ CREATE TABLE player_statics(
     assits INT DEFAULT 0,
     yellow_cards INT DEFAULT 0,
     rating_score DECIMAL(3,1) DEFAULT 0,
-    FOREIGN KEY (player_id) REFERENCES players(player_id),
-    FOREIGN KEY (match_id) REFERENCES matches(match_id)
+    CONSTRAINT player_id FOREIGN KEY (player_id) REFERENCES players(player_id),
+    CONSTRAINT match_id FOREIGN KEY (match_id) REFERENCES matches(match_id)
 );
 
 -- phần 2 DML 
@@ -115,26 +116,31 @@ VALUES
 -- CÂU 2 UPDATE VÀ DELETE 
 
 -- lệnh tăng lương 15% cho tất cả các cầu thủ
-UPDATE players p 
-SET salary = salary * 1.15
-WHERE 
+UPDATE players p
+SET p.salary = p.salary * 1.15
+WHERE p.player_id IN(SELECT p.player_id FROM players p
+JOIN player_statics ps 
+ON p.player_id = ps.player_id 
+WHERE p.position = 'Forward' AND ps.rating_score  > 8.0);
+
+
 
 -- cậu lệnh xóa các bản ghi có lớn hơn 2 thẻ vàng 
 DELETE FROM player_statics
 WHERE yellow_cards > 2;
 
 -- Phần 3 Truy vấn cơ bản
--- câu 1
+-- câu 1 chọn ra cầu thủ chơi ở tiền vệ có lương trên 50 triệu
 SELECT p.full_name,p.jersey_number,p.position
 FROM players p
 WHERE p.position = 'Midfield' and salary > 50000000;
--- câu 2
+-- câu 2 chọn ra team có svd bắt đầu = chữ S
 
 SELECT team_name,stadium
 FROM teams
 WHERE stadium LIKE 'S%';
 
--- câu 3
+-- câu 3 phân trang ba trận đấu trên 1 trang và bỏ qua 2 bản ghi
 SELECT match_id,stadium,match_date
 FROM matches
 ORDER BY match_date DESC 
@@ -142,7 +148,7 @@ LIMIT 3 OFFSET 2;
 
 
 -- Phần 4 Truy vấn nâng cao
--- câu 1
+-- câu 1 lấy ra tên cầu thủ , đội tuyển đang thi đấu , tổng bàn thắng , kiến tạo
 SELECT p.full_name,t.team_name,ps.goals,ps.assits
 FROM teams t
 JOIN players p
@@ -150,7 +156,7 @@ ON t.team_id = p.player_id
 JOIN player_statics ps
 ON p.player_id = ps.player_id;
 
--- câu 2
+-- câu 2 lấy ra tên team đá banh và lấy ra tổng số bàn thắng trên clb
 SELECT t.team_name ,COUNT(ps.goals) AS total_team_goals
 FROM teams t
 JOIN players p 
@@ -160,16 +166,16 @@ ON ps.player_id = p.player_id
 GROUP BY t.team_id
 HAVING COUNT(ps.goals) >10;
 
--- câu 3
+-- câu 3 lấy cầu thủ có lương = lương cao nhất
 SELECT player_id,full_name,salary
 FROM players
 WHERE salary = (SELECT MAX(SALARY) FROM players);
 
 -- Phần 5 INDEX VÀ VIEW
--- câu 1
+-- câu 1 tạo index cho 2 cột position và salary
 CREATE INDEX indx_pos_sal ON players(position,salary);
 
--- câu 2
+-- câu 2 tạo view để xem tên clb số lượng cầu thủ và tổng quỹ lương
 CREATE VIEW vw_team AS
 SELECT t.team_name,COUNT(p.player_id),SUM(p.salary)
 FROM teams t
@@ -179,7 +185,7 @@ GROUP BY t.team_id;
 SELECT * FROM vw_team;
 
 -- Phần 6 
--- câu 1
+-- câu 1 tăng lương nếu update bàn thắng lớn hơn 10
 DELIMITER $$
 CREATE TRIGGER promote_slary
 AFTER UPDATE 
@@ -197,9 +203,9 @@ END $$
  -- câu 2 
  -- không có cột đội nào thắng trong bảng trận đấu ạ
  
- -- phần 7 PROCEDURE 
+ -- phần 7 PROCEDURE  tạo procedure trả về rank của cầu thủ
  
- DELIMITER $$
+ DELIMITER $$ 
  CREATE PROCEDURE give_back_rank(IN p_player_id INT)
  BEGIN
 		SELECT 
@@ -215,7 +221,7 @@ END $$
  
  CALL give_back_rank(5);
  
- -- câu 2
+ -- câu 2 đổi clb cho cầu thủ
  
  CREATE TABLE exchange_log(
 	log_id INT PRIMARY KEY AUTO_INCREMENT,
