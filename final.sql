@@ -43,8 +43,8 @@ CREATE TABLE matches(
     away_team_id INT,
     match_date DATETIME NOT NULL,
     stadium VARCHAR(100) NOT NULL,
-    match_status VARCHAR(30) DEFAULT 'Scheduled',
-    win_team IN(NULL,-1,
+    match_status VARCHAR(30) DEFAULT 'Scheduled'
+    
 );
 
 -- tạo bảng thông số 
